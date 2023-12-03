@@ -1,0 +1,55 @@
+# This is a TOML document
+
+title = "repapr-ppo-cas config file"
+algorithm = "SAC"
+mode = 0 # 0: All / 1: learn / 2: load
+
+[input] # 入力変数
+tones = 4
+del_freq = 1.0
+del_time = 0.001
+amp = 1.0
+theta_k_model = "random"
+unify_value = 0.5
+manual = []
+
+[addproc] # 追加処理
+rt_graph = true
+notify = false
+
+[env.param] # 環境パラメータ
+continuous = true
+total_timesteps = 10_000     # 計算上限（継承時は無効）
+max_episode_steps = 200       # 1エピソードあたりのステップ上限
+
+[env.observation] # observation 設定
+theta_k = true
+ept = false
+papr = true
+mse = false
+peaks_height = false        # calc_peaks
+len_both_peaks = false      # calc_peaks
+
+[env.reward] # reward 設定
+# eval_metrics: "db"
+#   eval_model: ["Raw", "Double", "Square"]
+# eval_metrics: "abs"
+#   eval_model: ["USo_v1", "USt_v1", "UFtSt_v1", "BSo_v1", "BSt_v1", "BFt_v1"]
+# eval_metrics: "mse"
+#   eval_model: ["AMSE_v0", "BMSE_v0"]
+eval_metrics = "mse"
+eval_model = "AMSE_v0"
+
+[hyper] # ハイパーパラメータ
+N = 16
+batch_size = 64
+n_epochs = 8
+alpha = 0.0003
+gamma = 0.99
+
+[output]
+filepath = "repapr-ppo-cas/out"
+
+[output.line]
+channel_token = ""
+user_id = ""
