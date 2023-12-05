@@ -1,6 +1,6 @@
 # This is a TOML document
 
-title = "repapr-ppo-cas config file"
+title = "repapr-sb3 config file"
 algorithm = "SAC"
 mode = 0 # 0: All / 1: learn / 2: load
 
@@ -24,6 +24,7 @@ max_episode_steps = 200       # 1エピソードあたりのステップ上限
 
 [env.observation] # observation 設定
 theta_k = true
+theta_k_diff = true
 ept = false
 papr = true
 mse = false

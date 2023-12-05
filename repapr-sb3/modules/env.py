@@ -19,7 +19,7 @@ class RePAPREnv(gym.Env):
     def __init__(self, render_mode: Optional[str] = None):
         # 1 => 2π / -1 ~ 1 であれば 0.5 で少なくとも 2π 分は変位可能
         #self.max_phase = 0.5
-        self.max_phase = 0.5 / 20
+        self.max_phase_diff = 0.5
         self.render_mode = render_mode
 
         # Load config
@@ -44,9 +44,9 @@ class RePAPREnv(gym.Env):
 
         # action スペース設定
         if self.continuous is True:
-            self.action_space = spaces.Box(low=-self.max_phase, high=self.max_phase, shape=(self.tones,), dtype=np.float64)
+            self.action_space = spaces.Box(low=-self.max_phase_diff, high=self.max_phase_diff, shape=(self.tones-1,), dtype=np.float64)
         else:
-            self.action_space = spaces.Discrete(3*self.tones)
+            self.action_space = spaces.Discrete(3*(self.tones-1))
 
         # observation の次元設定とスペース設定の準備
         observation_low = []
@@ -59,6 +59,11 @@ class RePAPREnv(gym.Env):
             for _ in range(self.tones):
                 observation_low.append(0.0)
                 observation_high.append(1.0)
+        if self.observation_items['theta_k_diff'] is True:
+            self.input_dims += self.tones-1
+            for _ in range(self.tones-1):
+                observation_low.append(-0.5)
+                observation_high.append(0.5)
         if self.observation_items['ept'] is True:
             self.input_dims += len(self.time_arr)
             for _ in range(len(self.time_arr)):
@@ -102,8 +107,17 @@ class RePAPREnv(gym.Env):
 
 
     def step(self, action):
-        action = np.clip(action, -self.max_phase, self.max_phase)
-        self.theta_k_bins = np.mod(np.add(self.theta_k_bins, action), 1)
+        action = np.clip(action, -self.max_phase_diff, self.max_phase_diff)
+        self.theta_k_diffs = action
+
+        # 位相差を theta_k_bins に反映
+        self.theta_k_bins = [0]
+        for i in range(len(action)):
+            self.theta_k_bins.append(self.theta_k_bins[i] + action[i])
+
+        # theta_k_bins を 0~1 に収める
+        self.theta_k_bins = np.mod(self.theta_k_bins, 1)
+
         self.ept_arr, self.max_ept, self.papr_w, self.papr_db = self._get_ept_arr()
 
         self.known_amse, self.known_peaks = False, False    # 再計算防止
@@ -125,6 +139,8 @@ class RePAPREnv(gym.Env):
         observation = []
         if self.observation_items['theta_k'] is True:
             observation += self.theta_k_bins.tolist()
+        if self.observation_items['theta_k_diff'] is True:
+            observation += self.theta_k_diffs.tolist()
         if self.observation_items['ept'] is True:
             # 僅かに負の値となることがあるためクリップ
             observation += np.clip(self.ept_arr, 0.0, self.tones**2).tolist()
@@ -151,11 +167,11 @@ class RePAPREnv(gym.Env):
             case 'db':
                 match self.eval_model:
                     case 'Raw':
-                        reward = self.papr_db
+                        reward = -self.papr_db
                     case 'Double':
-                        reward = self.papr_db*2
+                        reward = -self.papr_db*2
                     case 'Square':
-                        reward = self.papr_db**2
+                        reward = -self.papr_db**2
             case 'abs':
                 match self.eval_model:
                     case 'USo_v1':
@@ -249,6 +265,15 @@ class RePAPREnv(gym.Env):
         else:
             # マニュアル初期化はオプションにマージ
             self.theta_k_bins = options.get("manual_arr") if "manual_arr" in options else self._get_theta_k()
+
+        self.theta_k_diffs = []
+        for i in range(len(self.theta_k_bins)-1):
+            self.theta_k_diffs.append(self.theta_k_bins[i+1]-self.theta_k_bins[i])
+        # 0~1の範囲にする
+        self.theta_k_diffs = np.mod(self.theta_k_diffs, 1)
+        # 0.5より大きい場合は、-1を足す / -0.5より小さい場合は、1を足す
+        self.theta_k_diffs = np.where(self.theta_k_diffs > 0.5, self.theta_k_diffs - 1, self.theta_k_diffs)
+        self.theta_k_diffs = np.where(self.theta_k_diffs < -0.5, self.theta_k_diffs + 1, self.theta_k_diffs)
 
         # observation 計算
         self.ept_arr, self.max_ept, self.papr_w, self.papr_db = self._get_ept_arr()
