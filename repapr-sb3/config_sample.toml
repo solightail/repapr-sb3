@@ -1,6 +1,6 @@
 # This is a TOML document
 
-title = "repapr-ppo-cas config file"
+title = "repapr-sb3 config file"
 algorithm = "SAC"
 mode = 0 # 0: All / 1: learn / 2: load
 
@@ -48,7 +48,7 @@ alpha = 0.0003
 gamma = 0.99
 
 [output]
-filepath = "repapr-ppo-cas/out"
+filepath = "repapr-sb3/out"
 
 [output.line]
 channel_token = ""

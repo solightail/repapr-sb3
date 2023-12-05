@@ -151,11 +151,11 @@ class RePAPREnv(gym.Env):
             case 'db':
                 match self.eval_model:
                     case 'Raw':
-                        reward = self.papr_db
+                        reward = -self.papr_db
                     case 'Double':
-                        reward = self.papr_db*2
+                        reward = -self.papr_db*2
                     case 'Square':
-                        reward = self.papr_db**2
+                        reward = -self.papr_db**2
             case 'abs':
                 match self.eval_model:
                     case 'USo_v1':

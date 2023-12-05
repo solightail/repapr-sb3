@@ -36,7 +36,7 @@ def program() -> None:
 def learn() -> None:
     # 学習モデルの上書き確認
     if os.path.exists(f"{out}.zip"):
-        if not input('Overwrite learned files? [Y/n] ') == "Y" or "y" or "YES" or "Yes" or "yes":
+        if not input('Overwrite learned files? [Y/n] ') in ["Y", "y", "YES", "Yes", "yes"]:
             raise FileExistsError("Learned file already exists.")
 
     if cfg.notify is True: _notify(f"学習を開始します")
