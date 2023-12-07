@@ -10,7 +10,7 @@ del_freq = 1.0
 del_time = 0.001
 amp = 1.0
 theta_k_model = "random"
-unify_value = 0.5
+phase_value = 0.0
 manual = []
 
 [addproc] # 追加処理
@@ -19,11 +19,13 @@ notify = false
 
 [env.param] # 環境パラメータ
 continuous = true
-total_timesteps = 10_000     # 計算上限（継承時は無効）
-max_episode_steps = 200       # 1エピソードあたりのステップ上限
+const_first_phase = true    # 1つめの位相を phase_value で固定
+total_timesteps = 10_000    # 計算上限（継承時は無効）
+max_episode_steps = 200     # 1エピソードあたりのステップ上限
 
 [env.observation] # observation 設定
 theta_k = true
+theta_k_diff = true
 ept = false
 papr = true
 mse = false

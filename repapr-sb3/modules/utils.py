@@ -20,6 +20,7 @@ def new_result_path(path, foldername) -> str:
 
 
 def rt_plot_init(time_arr, ept_arr, papr, mse=None, bl=False, action_div=None):
+    plt.figure()
     lines, = plt.plot(time_arr, ept_arr)
     if bl is True:
         if action_div is None:
@@ -59,6 +60,58 @@ def rt_plot_reload_text_br(text, papr, mse=None, setcolor='gray'):
     else:
         text.set_text(f'PAPR: {papr:.03f} dB / All_MSE: {mse:.03f}')
     text.set_color(setcolor)
+
+def rt_circle_init(theta_k_bins_diffs):
+    plt.figure()
+    # 値が 0~1 までの円を作るために、角度の配列を作成
+    angles = np.linspace(0, 2*np.pi, 100)
+
+    # 円の x 座標と y 座標を計算
+    x = np.cos(angles)
+    y = np.sin(angles)
+
+    # 円をプロット
+    plt.axis('equal')
+    plt.plot(x, y, color='gray')
+
+    # 円の中心から円周上の入力値に向かって線を引くために、入力値に対応する角度を計算
+    const_lines = [i * 0.1 * 2*np.pi for i in range(10)]
+
+    # 入力値に対応する円周上の点の x 座標と y 座標を計算
+    const_lines_x = [np.cos(angle) for angle in const_lines]
+    const_lines_y = [np.sin(angle) for angle in const_lines]
+
+    # 円の中心から円周上の入力値に向かって線を引く
+    for i in range(10):
+        plt.plot([0, const_lines_x[i]], [0, const_lines_y[i]], color='gray', lw=0.5)
+
+    # 円の中心から円周上の入力値に向かって線を引くために、入力値に対応する角度を計算
+    input_angles = [i * 2*np.pi for i in theta_k_bins_diffs]
+
+    # 入力値に対応する円周上の点の x 座標と y 座標を計算
+    input_x = [np.cos(angle) for angle in input_angles]
+    input_y = [np.sin(angle) for angle in input_angles]
+
+    # 円の中心から円周上の入力値に向かって線を引く
+    circle_lines = []
+    for i in range(len(theta_k_bins_diffs)):
+        temp_line, = plt.plot([0, input_x[i]], [0, input_y[i]], lw=0.75)
+        circle_lines.append(temp_line)
+
+    # グラフの表示範囲を設定
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+
+    return circle_lines
+
+def rt_circle_reload_line(circle_lines, theta_k_bins_diffs):
+    input_angles = [i * 2*np.pi for i in theta_k_bins_diffs]
+    input_x = [np.cos(angle) for angle in input_angles]
+    input_y = [np.sin(angle) for angle in input_angles]
+
+    for i in range(len(theta_k_bins_diffs)):
+        # lineオブジェクトのデータを更新
+        circle_lines[i].set_data([0, input_x[i]], [0, input_y[i]])
 
 def rt_pause_plot():
     plt.pause(.01)
