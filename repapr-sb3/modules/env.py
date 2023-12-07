@@ -10,6 +10,10 @@ import gymnasium as gym
 from gymnasium import spaces
 
 class RePAPREnv(gym.Env):
+    """
+    gymnasium v0.29.1 準拠
+    reference -> Pendulum-v1
+    """
     metadata = {
         "render_modes": ["human", "debug"],
         'video.frames_per_second' : 30,
@@ -349,9 +353,12 @@ class RePAPREnv(gym.Env):
                 rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
                 rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
                 if action is not None:
-                    print(f"{action} / {self.theta_k_bins}")
+                    print("-----------------------------------------------")
+                    print(f"action : {action}")
+                    print(f"theta_k: {self.theta_k_bins}")
                 else:
-                    print(f"--- reset --- / {self.theta_k_bins}")
+                    print("-------------------- reset --------------------")
+                    print(f"theta_k: {self.theta_k_bins}")
                 rt_pause_plot()
 
     def close():
