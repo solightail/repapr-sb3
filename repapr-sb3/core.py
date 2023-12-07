@@ -33,6 +33,7 @@ def program() -> None:
         case _:
             raise ValueError("A non-existent mode is selected.")
 
+
 def learn() -> None:
     # 学習モデルの上書き確認
     if os.path.exists(f"{out}.zip"):
@@ -100,7 +101,7 @@ def _output(list_step, list_epi, list_action, \
     data.to_csv(f'{out}.csv', index=False)
 
     min_i = list_papr.index(min(list_papr))
-    text: str = f'theta_k: {list_theta_k_bins[min_i]}\nEP(t): {list_max_ept[min_i]} W / {list_papr[min_i]} dB\n'
+    text: str = f'\ntheta_k: {list_theta_k_bins[min_i]}\nEP(t): {list_max_ept[min_i]} W / {list_papr[min_i]} dB'
 
     with open(f'{out}.txt', encoding="utf-8", mode='w') as file:
         file.write(text)
