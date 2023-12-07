@@ -29,12 +29,13 @@ class RePAPREnv(gym.Env):
         self.del_time: float = cfg.del_time
         self.amp: float = cfg.amp
         self.theta_k_model: str = cfg.theta_k_model
-        self.unify_value: float = cfg.unify_value
+        self.phase_value: float = cfg.phase_value
         self.manual: float = cfg.manual
         self.observation_items: dict = cfg.observation_items
         self.eval_metrics: str = cfg.eval_metrics
         self.eval_model: str = cfg.eval_model
         self.continuous: bool = cfg.continuous
+        self.const_first_phase: bool = cfg.const_first_phase
         self.rt_graph: bool = cfg.rt_graph
 
         # 変数初期化
@@ -44,7 +45,10 @@ class RePAPREnv(gym.Env):
 
         # action スペース設定
         if self.continuous is True:
-            self.action_space = spaces.Box(low=-self.max_phase, high=self.max_phase, shape=(self.tones,), dtype=np.float64)
+            if self.const_first_phase is True:
+                self.action_space = spaces.Box(low=-self.max_phase, high=self.max_phase, shape=(self.tones-1,), dtype=np.float64)
+            else:
+                self.action_space = spaces.Box(low=-self.max_phase, high=self.max_phase, shape=(self.tones,), dtype=np.float64)
         else:
             self.action_space = spaces.Discrete(3*self.tones)
 
@@ -57,6 +61,11 @@ class RePAPREnv(gym.Env):
         if self.observation_items['theta_k'] is True:
             self.input_dims += self.tones
             for _ in range(self.tones):
+                observation_low.append(0.0)
+                observation_high.append(1.0)
+        if self.observation_items['theta_k_diff']:
+            self.input_dims += self.tones-1
+            for _ in range(self.tones-1):
                 observation_low.append(0.0)
                 observation_high.append(1.0)
         if self.observation_items['ept'] is True:
@@ -103,7 +112,16 @@ class RePAPREnv(gym.Env):
 
     def step(self, action):
         action = np.clip(action, -self.max_phase, self.max_phase)
-        self.theta_k_bins = np.mod(np.add(self.theta_k_bins, action), 1)
+        if self.const_first_phase is True:
+            if self.theta_k_model == 'manual':
+                self.theta_k_bins = np.insert(np.mod(np.add(self.theta_k_bins[1:], action), 1), 0, self.manual[0])
+            else:
+                self.theta_k_bins = np.insert(np.mod(np.add(self.theta_k_bins[1:], action), 1), 0, self.phase_value)
+            self.theta_k_bins_diffs = np.mod(np.add(self.theta_k_bins_diffs, action), 1)
+        else:
+            self.theta_k_bins = np.mod(np.add(self.theta_k_bins, action), 1)
+        self.theta_k_bins_diffs = [np.mod(self.theta_k_bins[i+1]-self.theta_k_bins[i], 1) for i in range(self.tones-1)]
+
         self.ept_arr, self.max_ept, self.papr_w, self.papr_db = self._get_ept_arr()
 
         self.known_amse, self.known_peaks = False, False    # 再計算防止
@@ -125,6 +143,8 @@ class RePAPREnv(gym.Env):
         observation = []
         if self.observation_items['theta_k'] is True:
             observation += self.theta_k_bins.tolist()
+        if self.observation_items['theta_k_diff'] is True:
+            observation += self.theta_k_bins_diffs
         if self.observation_items['ept'] is True:
             # 僅かに負の値となることがあるためクリップ
             observation += np.clip(self.ept_arr, 0.0, self.tones**2).tolist()
@@ -249,6 +269,7 @@ class RePAPREnv(gym.Env):
         else:
             # マニュアル初期化はオプションにマージ
             self.theta_k_bins = options.get("manual_arr") if "manual_arr" in options else self._get_theta_k()
+        self.theta_k_bins_diffs = [np.mod(self.theta_k_bins[i+1]-self.theta_k_bins[i], 1) for i in range(self.tones-1)]
 
         # observation 計算
         self.ept_arr, self.max_ept, self.papr_w, self.papr_db = self._get_ept_arr()
@@ -271,15 +292,15 @@ class RePAPREnv(gym.Env):
         # アルゴリズム選択
         match self.theta_k_model:
             case 'narahashi':
-                strategy = Narahashi(self.tones)
+                strategy = Narahashi()
             case 'newman':
-                strategy = Newman(self.tones)
+                strategy = Newman()
             case 'unify':
-                strategy = Unify(self.tones, self.unify_value)
+                strategy = Unify()
             case 'random':
-                strategy = Random(self.tones)
+                strategy = Random()
             case 'manual':
-                strategy = Manual(self.tones, self.manual)
+                strategy = Manual(self.manual)
 
         # theta_k 計算
         algo_context = AContext(strategy)
@@ -303,26 +324,30 @@ class RePAPREnv(gym.Env):
 
         if self.render_mode == "human":
             if self.init_rt_graph is True:
-                from .utils import rt_plot_init
+                from .utils import rt_plot_init, rt_circle_init
                 self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
+                self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
                 self.init_rt_graph = False
             if self.rt_graph is True:
-                from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_pause_plot
+                from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_circle_reload_line, rt_pause_plot
                 # rt_graph リセット
                 rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
                 rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
+                rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
                 rt_pause_plot()
 
         else:  # mode == "debug":
             if self.init_rt_graph is True:
-                from .utils import rt_plot_init
+                from .utils import rt_plot_init, rt_circle_init
                 self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
+                self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
                 self.init_rt_graph = False
             if self.rt_graph is True:
-                from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_pause_plot
+                from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_circle_reload_line, rt_pause_plot
                 # rt_graph リセット
                 rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
                 rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
+                rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
                 if action is not None:
                     print(f"{action} / {self.theta_k_bins}")
                 else:
