@@ -18,8 +18,9 @@ rt_graph = true
 notify = false
 
 [env.param] # 環境パラメータ
-continuous = true
+continuous = true           # 連続値を使用するか
 const_first_phase = true    # 1つめの位相を phase_value で固定
+action_control = 0          # 0: 相対値 / 1: 絶対値
 total_timesteps = 10_000    # 計算上限（継承時は無効）
 max_episode_steps = 200     # 1エピソードあたりのステップ上限
 

@@ -21,11 +21,6 @@ class RePAPREnv(gym.Env):
     }
 
     def __init__(self, render_mode: Optional[str] = None):
-        # 1 => 2π / -1 ~ 1 であれば 0.5 で少なくとも 2π 分は変位可能
-        #self.max_phase = 0.5
-        self.max_phase = 0.5 / 20
-        self.render_mode = render_mode
-
         # Load config
         cfg = Conf()
         self.tones: int = cfg.tones
@@ -40,7 +35,10 @@ class RePAPREnv(gym.Env):
         self.eval_model: str = cfg.eval_model
         self.continuous: bool = cfg.continuous
         self.const_first_phase: bool = cfg.const_first_phase
+        self.action_control: int = cfg.action_control
         self.rt_graph: bool = cfg.rt_graph
+
+        self.render_mode = render_mode
 
         # 変数初期化
         self.amse = None
@@ -49,11 +47,22 @@ class RePAPREnv(gym.Env):
         if self.render_mode is not None and self.rt_graph is True: self.init_rt_graph: bool = True
 
         # action スペース設定
+        # 1 => 2π / -1 ~ 1 であれば 0.5 で少なくとも 2π 分は変位可能
+        if self.action_control == 0:
+            self.max_phase = 0.5 / 20
+            self.action_low = -self.max_phase
+            self.action_high = -self.max_phase
+        else:
+            self.max_phase = 1.0
+            self.action_low = 0.0
+            self.action_high = self.max_phase
+        if self.const_first_phase is True:
+            _action_shape = self.tones-1
+        else:
+            _action_shape = self.tones
+
         if self.continuous is True:
-            if self.const_first_phase is True:
-                self.action_space = spaces.Box(low=-self.max_phase, high=self.max_phase, shape=(self.tones-1,), dtype=np.float64)
-            else:
-                self.action_space = spaces.Box(low=-self.max_phase, high=self.max_phase, shape=(self.tones,), dtype=np.float64)
+            self.action_space = spaces.Box(low=self.action_low, high=self.action_high, shape=(_action_shape,), dtype=np.float64)
         else:
             self.action_space = spaces.Discrete(3*self.tones)
 
@@ -116,15 +125,24 @@ class RePAPREnv(gym.Env):
 
 
     def step(self, action):
-        action = np.clip(action, -self.max_phase, self.max_phase)
-        if self.const_first_phase is True:
-            if self.theta_k_model == 'manual':
-                self.theta_k_bins = np.insert(np.mod(np.add(self.theta_k_bins[1:], action), 1), 0, self.manual[0])
+        action = np.clip(action, self.action_low, self.action_high)
+        if self.action_control == 0:
+            if self.const_first_phase is True:
+                if self.theta_k_model == "manual":
+                    self.theta_k_bins = np.insert(np.mod(np.add(self.theta_k_bins[1:], action), 1.0), 0, self.manual[0])
+                else:
+                    self.theta_k_bins = np.insert(np.mod(np.add(self.theta_k_bins[1:], action), 1.0), 0, self.phase_value)
             else:
-                self.theta_k_bins = np.insert(np.mod(np.add(self.theta_k_bins[1:], action), 1), 0, self.phase_value)
-            self.theta_k_bins_diffs = np.mod(np.add(self.theta_k_bins_diffs, action), 1)
-        else:
-            self.theta_k_bins = np.mod(np.add(self.theta_k_bins, action), 1)
+                self.theta_k_bins = np.mod(np.add(self.theta_k_bins, action), 1.0)
+        else:  #self.action_control == 1:
+            if self.const_first_phase is True:
+                if self.theta_k_model == "manual":
+                    self.theta_k_bins = np.insert(np.mod(action, 1.0), 0, self.manual[0])
+                else:
+                    self.theta_k_bins = np.insert(np.mod(action, 1.0), 0, self.phase_value)
+            else:
+                self.theta_k_bins = np.mod(action, 1.0)
+
         self.theta_k_bins_diffs = [np.mod(self.theta_k_bins[i+1]-self.theta_k_bins[i], 1) for i in range(self.tones-1)]
 
         self.ept_arr, self.max_ept, self.papr_w, self.papr_db = self._get_ept_arr()
@@ -273,8 +291,9 @@ class RePAPREnv(gym.Env):
         if self._options is None:
             self.theta_k_bins = self._get_theta_k()
         else:
-            # マニュアル初期化はオプションにマージ
+            # マニュアル値はオプションより入力 (set_optionsメソッドよりdict型で入力)
             self.theta_k_bins = self._options.get("manual_theta_k") if "manual_theta_k" in self._options else self._get_theta_k()
+
         self.theta_k_bins_diffs = [np.mod(self.theta_k_bins[i+1]-self.theta_k_bins[i], 1) for i in range(self.tones-1)]
 
         # observation 計算
@@ -288,8 +307,6 @@ class RePAPREnv(gym.Env):
             self.render()
         elif self.render_mode == "debug":
             self.render()
-
-        print(new_obs)
 
         return new_obs, {}
 
