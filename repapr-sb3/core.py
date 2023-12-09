@@ -30,6 +30,8 @@ def program() -> None:
             learn()
         case 2:
             exec()
+        case 3:
+            inherit_exec()
         case _:
             raise ValueError("A non-existent mode is selected.")
 
@@ -75,7 +77,10 @@ def exec() -> None:
     vec_env = model.get_env()
     obs = vec_env.reset()
     for i in range(exec_limit):
-        action, _states = model.predict(obs, deterministic=True)
+        if cfg.algorithm == 'SAC':
+            action, _states = model.predict(obs, deterministic=True)
+        else:
+            action, _states = model.predict(obs)
         obs, reward, done, info = vec_env.step(action)
         vec_env.render()
 
@@ -106,3 +111,40 @@ def _output(list_step, list_epi, list_action, \
     with open(f'{out}.txt', encoding="utf-8", mode='w') as file:
         file.write(text)
     print(text)
+
+def inherit_exec() -> None:
+    # 学習モデルの存在確認
+    if not os.path.exists(f"{out}.zip"):
+        raise FileNotFoundError("Learned file not found.")
+
+    # 変数初期化
+    exec_loop = 5
+    exec_limit = cfg.max_episode_steps*exec_loop
+    list_step = [i for i in range(exec_limit)]
+    list_epi = [i for i in range(exec_loop) for _ in range(cfg.max_episode_steps)]
+    list_action, list_theta_k_bins, list_max_ept, list_papr = [], [], [], []
+
+    model.load(out)
+    vec_env = model.get_env()
+    obs = vec_env.reset()
+    for _ in range(exec_loop):
+        for _ in range(cfg.max_episode_steps):
+            if cfg.algorithm == 'SAC':
+                action, _states = model.predict(obs, deterministic=True)
+            else:
+                action, _states = model.predict(obs)
+            obs, reward, done, info = vec_env.step(action)
+            vec_env.render()
+
+            # 記録
+            list_action.append(action)
+            list_theta_k_bins.append(env.unwrapped.theta_k_bins)
+            list_max_ept.append(env.unwrapped.max_ept)
+            list_papr.append(env.unwrapped.papr_db)
+
+        cfg.theta_k_model = 'manual'
+        min_i = list_papr.index(min(list_papr))
+        env.unwrapped.set_options(dict(manual_theta_k=list_theta_k_bins[min_i]))
+        obs = vec_env.reset()
+
+    _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)

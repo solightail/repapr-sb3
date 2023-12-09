@@ -2,7 +2,7 @@
 
 title = "repapr-sb3 config file"
 algorithm = "SAC"
-mode = 0        # 0: All / 1: learn / 2: load
+mode = 0        # 0: All / 1: learn / 2: load / 3: inherit_load
 
 [input] # 入力変数
 tones = 4
