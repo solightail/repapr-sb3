@@ -4,7 +4,7 @@ import gymnasium as gym
 from .modules.conf import Conf
 
 cfg = Conf()
-out = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/{cfg.eval_model}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}"
+out = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/{cfg.eval_model}_{cfg.action_control}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}"
 # unuse names
 # _G{str(cfg.gamma).replace('.', '')}
 env = gym.make("repapr-v0", render_mode="debug")
@@ -13,10 +13,10 @@ env = gym.make("repapr-v0", render_mode="debug")
 match cfg.algorithm:
     case "PPO":
         from stable_baselines3 import PPO
-        model = PPO("MlpPolicy", env, verbose=1, gamma=cfg.gamma)
+        model = PPO("MlpPolicy", env, verbose=1, gamma=cfg.gamma, n_steps=cfg.N, batch_size=cfg.batch_size)
     case "SAC":
         from stable_baselines3 import SAC
-        model = SAC("MlpPolicy", env, verbose=1, gamma=cfg.gamma)
+        model = SAC("MlpPolicy", env, verbose=1, gamma=cfg.gamma, batch_size=cfg.batch_size)
     case _:
         raise ValueError("A non-existent algorithm is selected.")
 
