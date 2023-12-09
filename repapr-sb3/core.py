@@ -57,7 +57,7 @@ def _notify(in_msg) -> None:
     from datetime import datetime
     from .modules.utils import send_line
     end = datetime.now()
-    message = f"repapr-ppo-cas / {end.time().isoformat(timespec='seconds')}\n{cfg.algorithm} N{cfg.tones}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}\n{in_msg}"
+    message = f"repapr-sb3 / {end.time().isoformat(timespec='seconds')}\n{cfg.algorithm} N{cfg.tones}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}\n{in_msg}"
     send_line(cfg.line['channel_token'], cfg.line['user_id'], message)
 
 
