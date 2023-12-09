@@ -34,7 +34,7 @@ class RePAPREnv(gym.Env):
         self.amp: float = cfg.amp
         self.theta_k_model: str = cfg.theta_k_model
         self.phase_value: float = cfg.phase_value
-        self.manual: float = cfg.manual
+        self.manual: list = cfg.manual
         self.observation_items: dict = cfg.observation_items
         self.eval_metrics: str = cfg.eval_metrics
         self.eval_model: str = cfg.eval_model
@@ -44,6 +44,7 @@ class RePAPREnv(gym.Env):
 
         # 変数初期化
         self.amse = None
+        self._options = None
         self.time_arr: np.ndarray = np.arange(0.0, 1.0 + self.del_time, self.del_time)
         if self.render_mode is not None and self.rt_graph is True: self.init_rt_graph: bool = True
 
@@ -268,11 +269,12 @@ class RePAPREnv(gym.Env):
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
-        if options is None:
+
+        if self._options is None:
             self.theta_k_bins = self._get_theta_k()
         else:
             # マニュアル初期化はオプションにマージ
-            self.theta_k_bins = options.get("manual_arr") if "manual_arr" in options else self._get_theta_k()
+            self.theta_k_bins = self._options.get("manual_theta_k") if "manual_theta_k" in self._options else self._get_theta_k()
         self.theta_k_bins_diffs = [np.mod(self.theta_k_bins[i+1]-self.theta_k_bins[i], 1) for i in range(self.tones-1)]
 
         # observation 計算
@@ -290,6 +292,10 @@ class RePAPREnv(gym.Env):
         print(new_obs)
 
         return new_obs, {}
+
+    def set_options(self, options):
+        # Set options for the next reset
+        self._options = options
 
     def _get_theta_k(self):
         from .theta_k_model import Narahashi, Newman, Unify, Random, Manual, AContext
