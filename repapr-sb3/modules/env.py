@@ -350,12 +350,13 @@ class RePAPREnv(gym.Env):
             return
 
         if self.render_mode == "human":
-            if self.init_rt_graph is True:
-                from .utils import rt_plot_init, rt_circle_init
-                self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
-                self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
-                self.init_rt_graph = False
             if self.rt_graph is True:
+                if self.init_rt_graph is True:
+                    from .utils import rt_plot_init, rt_circle_init
+                    self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
+                    self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
+                    self.init_rt_graph = False
+
                 from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_circle_reload_line, rt_pause_plot
                 # rt_graph リセット
                 rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
@@ -364,12 +365,13 @@ class RePAPREnv(gym.Env):
                 rt_pause_plot()
 
         else:  # mode == "debug":
-            if self.init_rt_graph is True:
-                from .utils import rt_plot_init, rt_circle_init
-                self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
-                self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
-                self.init_rt_graph = False
             if self.rt_graph is True:
+                if self.init_rt_graph is True:
+                    from .utils import rt_plot_init, rt_circle_init
+                    self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
+                    self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
+                    self.init_rt_graph = False
+
                 from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_circle_reload_line, rt_pause_plot
                 # rt_graph リセット
                 rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
