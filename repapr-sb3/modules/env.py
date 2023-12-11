@@ -51,7 +51,7 @@ class RePAPREnv(gym.Env):
         if self.action_control == 0:
             self.max_phase = 0.5 / 20
             self.action_low = -self.max_phase
-            self.action_high = -self.max_phase
+            self.action_high = self.max_phase
         else:
             self.max_phase = 1.0
             self.action_low = 0.0
