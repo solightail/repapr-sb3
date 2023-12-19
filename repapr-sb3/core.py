@@ -154,6 +154,7 @@ def inherit_exec() -> None:
 def inherit_learn_exec() -> None:
     from datetime import datetime
     start = datetime.now()
+    out = f"{out}_5-15-50"
     # 学習モデルの上書き確認
     if os.path.exists(f"{out}/0.zip"):
         if not input('Overwrite learned files? [Y/n] ') in ["Y", "y", "YES", "Yes", "yes"]:
