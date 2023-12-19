@@ -163,12 +163,13 @@ def inherit_learn_exec() -> None:
 
     # 変数初期化
     best_papr = None
-    i = 0
+    exec_i = 0
+    step = 0
     papr_stack = 0
     papr_stacked = False
     papr_renew = 0
     exec_loop = 50
-    list_action, list_theta_k_bins, list_max_ept, list_papr = [], [], [], []
+    list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr = [], [], [], [], [], []
 
     while papr_renew in range(exec_loop):
         # 学習
@@ -179,13 +180,14 @@ def inherit_learn_exec() -> None:
                 model.learn(total_timesteps=cfg.max_episode_steps*8, log_interval=4, progress_bar=True)
             case _:
                 raise ValueError("A non-existent algorithm is selected.")
-        model.save(f"{out}/{i}")
+        model.save(f"{out}/{exec_i}")
 
         # 学習データ読み込み
-        model.load(f"{out}/{i}")
+        model.load(f"{out}/{exec_i}")
         vec_env = model.get_env()
         obs = vec_env.reset()
         for _ in range(cfg.max_episode_steps):
+            step += 1
             if cfg.algorithm == 'SAC':
                 action, _states = model.predict(obs, deterministic=True)
             else:
@@ -194,6 +196,8 @@ def inherit_learn_exec() -> None:
             vec_env.render()
 
             # 記録
+            list_step.append(step)
+            list_epi.append(papr_renew)
             list_action.append(action)
             list_theta_k_bins.append(env.unwrapped.theta_k_bins)
             list_max_ept.append(env.unwrapped.max_ept)
@@ -223,10 +227,8 @@ def inherit_learn_exec() -> None:
                 env.unwrapped.eval_model = "Square"
 
         obs = vec_env.reset()
-        i += 1
+        exec_i += 1
 
-    list_step = [i for i in range(cfg.max_episode_steps*papr_renew)]
-    list_epi = [i for i in range(papr_renew) for _ in range(cfg.max_episode_steps)]
     _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
     end = datetime.now()
     print(f'PAPR[dB]: {best_papr}  経過時間:{end-start}')
