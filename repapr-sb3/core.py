@@ -32,6 +32,8 @@ def program() -> None:
             exec()
         case 3:
             inherit_exec()
+        case 4:
+            inherit_learn_exec()
         case _:
             raise ValueError("A non-existent mode is selected.")
 
@@ -148,3 +150,84 @@ def inherit_exec() -> None:
         obs = vec_env.reset()
 
     _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
+
+def inherit_learn_exec() -> None:
+    from datetime import datetime
+    start = datetime.now()
+    # 学習モデルの上書き確認
+    if os.path.exists(f"{out}/0.zip"):
+        if not input('Overwrite learned files? [Y/n] ') in ["Y", "y", "YES", "Yes", "yes"]:
+            raise FileExistsError("Learned file already exists.")
+
+    if cfg.notify is True: _notify(f"演算を開始します")
+
+    # 変数初期化
+    best_papr = None
+    i = 0
+    papr_stack = 0
+    papr_stacked = False
+    papr_renew = 0
+    exec_loop = 50
+    list_action, list_theta_k_bins, list_max_ept, list_papr = [], [], [], []
+
+    while papr_renew in range(exec_loop):
+        # 学習
+        match cfg.algorithm:
+            case "PPO":
+                model.learn(total_timesteps=cfg.max_episode_steps*8, progress_bar=True)
+            case "SAC":
+                model.learn(total_timesteps=cfg.max_episode_steps*8, log_interval=4, progress_bar=True)
+            case _:
+                raise ValueError("A non-existent algorithm is selected.")
+        model.save(f"{out}/{i}")
+
+        # 学習データ読み込み
+        model.load(f"{out}/{i}")
+        vec_env = model.get_env()
+        obs = vec_env.reset()
+        for _ in range(cfg.max_episode_steps):
+            if cfg.algorithm == 'SAC':
+                action, _states = model.predict(obs, deterministic=True)
+            else:
+                action, _states = model.predict(obs)
+            obs, reward, done, info = vec_env.step(action)
+            vec_env.render()
+
+            # 記録
+            list_action.append(action)
+            list_theta_k_bins.append(env.unwrapped.theta_k_bins)
+            list_max_ept.append(env.unwrapped.max_ept)
+            list_papr.append(env.unwrapped.papr_db)
+
+        cfg.theta_k_model = 'manual'
+        if best_papr is None: best_papr = min(list_papr)
+        if best_papr == min(list_papr):
+            papr_stack += 1
+            if papr_stack == 10:
+                papr_stack = 0
+                papr_stacked = True
+        if best_papr > min(list_papr) or papr_stacked is True:
+            papr_renew += 1
+            papr_stack = 0
+            papr_stacked = False
+            best_papr = min(list_papr)
+            print(f"renewal: {papr_renew} / PAPR: {best_papr} / metrics: {env.unwrapped.eval_metrics}")
+
+            if papr_renew >= 5:
+                next_max_phase = env.unwrapped.max_phase * cfg.reduction_ratio
+                min_i = list_papr.index(best_papr)
+                next_theta_k = list_theta_k_bins[min_i]
+                env.unwrapped.set_options(dict(max_phase=next_max_phase, manual_theta_k=next_theta_k))
+            if papr_renew == 15:
+                env.unwrapped.eval_metrics = "db"
+                env.unwrapped.eval_model = "Square"
+
+        obs = vec_env.reset()
+        i += 1
+
+    list_step = [i for i in range(cfg.max_episode_steps*papr_renew)]
+    list_epi = [i for i in range(papr_renew) for _ in range(cfg.max_episode_steps)]
+    _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
+    end = datetime.now()
+    print(f'PAPR[dB]: {best_papr}  経過時間:{end-start}')
+    if cfg.notify is True: _notify(f"学習が完了しました")
