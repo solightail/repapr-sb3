@@ -92,9 +92,9 @@ def exec() -> None:
         list_max_ept.append(env.unwrapped.max_ept)
         list_papr.append(env.unwrapped.papr_db)
 
-    _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
+    _output(out, list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
 
-def _output(list_step, list_epi, list_action, \
+def _output(filename, list_step, list_epi, list_action, \
             list_theta_k_bins, list_max_ept, list_papr) -> None:
     import pandas as pd
     data: pd.DataFrame = pd.DataFrame({
@@ -105,12 +105,12 @@ def _output(list_step, list_epi, list_action, \
             'EP(t) [W]': list_max_ept,
             'PAPR [dB]': list_papr
         })
-    data.to_csv(f'{out}.csv', index=False)
+    data.to_csv(f'{filename}.csv', index=False)
 
     min_i = list_papr.index(min(list_papr))
     text: str = f'\ntheta_k: {list_theta_k_bins[min_i]}\nEP(t): {list_max_ept[min_i]} W / {list_papr[min_i]} dB'
 
-    with open(f'{out}.txt', encoding="utf-8", mode='w') as file:
+    with open(f'{filename}.txt', encoding="utf-8", mode='w') as file:
         file.write(text)
     print(text)
 
@@ -149,14 +149,14 @@ def inherit_exec() -> None:
         env.unwrapped.set_options(dict(manual_theta_k=list_theta_k_bins[min_i]))
         obs = vec_env.reset()
 
-    _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
+    _output(out, list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
 
 def inherit_learn_exec() -> None:
     from datetime import datetime
     start = datetime.now()
-    out = f"{out}_5-15-50"
+    fileout = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/mode4_5-15-50"
     # 学習モデルの上書き確認
-    if os.path.exists(f"{out}/0.zip"):
+    if os.path.exists(f"{fileout}/0.zip"):
         if not input('Overwrite learned files? [Y/n] ') in ["Y", "y", "YES", "Yes", "yes"]:
             raise FileExistsError("Learned file already exists.")
 
@@ -181,10 +181,10 @@ def inherit_learn_exec() -> None:
                 model.learn(total_timesteps=cfg.max_episode_steps*8, log_interval=4, progress_bar=True)
             case _:
                 raise ValueError("A non-existent algorithm is selected.")
-        model.save(f"{out}/{exec_i}")
+        model.save(f"{fileout}/{exec_i}")
 
         # 学習データ読み込み
-        model.load(f"{out}/{exec_i}")
+        model.load(f"{fileout}/{exec_i}")
         vec_env = model.get_env()
         obs = vec_env.reset()
         for _ in range(cfg.max_episode_steps):
@@ -230,7 +230,7 @@ def inherit_learn_exec() -> None:
         obs = vec_env.reset()
         exec_i += 1
 
-    _output(list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
+    _output(fileout, list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
     end = datetime.now()
     print(f'PAPR[dB]: {best_papr}  経過時間:{end-start}')
     if cfg.notify is True: _notify(f"学習が完了しました")
