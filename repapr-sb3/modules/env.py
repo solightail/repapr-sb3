@@ -50,12 +50,21 @@ class RePAPREnv(gym.Env):
         # 1 => 2π / -1 ~ 1 であれば 0.5 で少なくとも 2π 分は変位可能
         if self.action_control == 0:
             self.max_phase = 0.5 / 20
+        else:
+            self.max_phase = 1.0
+        self._get_action_space()
+
+        # observation の次元設定とスペース設定の準備
+        self._get_observation_space()
+
+    def _get_action_space(self) -> None:
+        if self.action_control == 0:
             self.action_low = -self.max_phase
             self.action_high = self.max_phase
         else:
-            self.max_phase = 1.0
             self.action_low = 0.0
             self.action_high = self.max_phase
+
         if self.const_first_phase is True:
             _action_shape = self.tones-1
         else:
@@ -66,7 +75,7 @@ class RePAPREnv(gym.Env):
         else:
             self.action_space = spaces.Discrete(3*self.tones)
 
-        # observation の次元設定とスペース設定の準備
+    def _get_observation_space(self) -> None:
         observation_low = []
         observation_high = []
         self.input_dims = 0
@@ -118,9 +127,6 @@ class RePAPREnv(gym.Env):
 
         observation_low = np.array(observation_low, dtype=np.float64)
         observation_high = np.array(observation_high, dtype=np.float64)
-        # This will throw a warning in tests/envs/test_envs in utils/env_checker.py as the space is not symmetric
-        #   or normalised as max_torque == 2 by default. Ignoring the issue here as the default settings are too old
-        #   to update to follow the openai gym api
         self.observation_space = spaces.Box(low=observation_low, high=observation_high, dtype=np.float64)
 
 
@@ -292,6 +298,9 @@ class RePAPREnv(gym.Env):
             self.theta_k_bins = self._get_theta_k()
         else:
             # マニュアル値はオプションより入力 (set_optionsメソッドよりdict型で入力)
+            if "max_phase" in self._options:
+                self.max_phase = self._options.get("max_phase")
+                self._get_action_space()
             self.theta_k_bins = self._options.get("manual_theta_k") if "manual_theta_k" in self._options else self._get_theta_k()
 
         self.theta_k_bins_diffs = [np.mod(self.theta_k_bins[i+1]-self.theta_k_bins[i], 1) for i in range(self.tones-1)]

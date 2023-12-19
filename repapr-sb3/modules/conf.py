@@ -34,6 +34,7 @@ class Conf(object):
             self.continuous: bool = cfg['env']['param']['continuous']
             self.const_first_phase: bool = cfg['env']['param']['const_first_phase']
             self.action_control: int = cfg['env']['param']['action_control']
+            self.reduction_ratio: float = cfg['env']['param']['reduction_ratio']
             self.total_timesteps: int = cfg['env']['param']['total_timesteps']
             self.max_episode_steps: int = cfg['env']['param']['max_episode_steps']
 
