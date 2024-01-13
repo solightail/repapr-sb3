@@ -34,9 +34,15 @@ class Conf(object):
             self.continuous: bool = cfg['env']['param']['continuous']
             self.const_first_phase: bool = cfg['env']['param']['const_first_phase']
             self.action_control: int = cfg['env']['param']['action_control']
-            self.reduction_ratio: float = cfg['env']['param']['reduction_ratio']
             self.total_timesteps: int = cfg['env']['param']['total_timesteps']
             self.max_episode_steps: int = cfg['env']['param']['max_episode_steps']
+
+            # 環境パラメータ（継承）
+            self.reduction_ratio: float = cfg['env']['param']['inherit']['reduction_ratio']
+            self.stack_limit: int = cfg['env']['param']['inherit']['stack_limit']
+            self.init_eval: int = cfg['env']['param']['inherit']['init_eval']
+            self.change_eval: int = cfg['env']['param']['inherit']['change_eval']
+            self.n_inherit: int = cfg['env']['param']['inherit']['n_inherit']
 
             # 観測・報酬パラメータ
             self.observation_items: dict = cfg['env']['observation']

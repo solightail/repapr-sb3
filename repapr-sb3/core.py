@@ -4,7 +4,7 @@ import gymnasium as gym
 from .modules.conf import Conf
 
 cfg = Conf()
-out = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/{cfg.eval_model}_{cfg.action_control}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}"
+out = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/{cfg.eval_model}_{cfg.action_control}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}_100"
 # unuse names
 # _G{str(cfg.gamma).replace('.', '')}
 env = gym.make("repapr-v0", render_mode="debug")
@@ -33,7 +33,9 @@ def program() -> None:
         case 3:
             inherit_exec()
         case 4:
-            inherit_learn_exec()
+            inherit_and_learn(reload=False)
+        case 5:
+            inherit_and_learn(reload=True)
         case _:
             raise ValueError("A non-existent mode is selected.")
 
@@ -151,44 +153,50 @@ def inherit_exec() -> None:
 
     _output(out, list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
 
-def inherit_learn_exec() -> None:
+
+def inherit_and_learn(reload) -> None:
+        # 時間計測
     from datetime import datetime
     start = datetime.now()
-    fileout = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/mode4_5-15-50"
-    # 学習モデルの上書き確認
-    if os.path.exists(f"{fileout}/0.zip"):
+
+    # 学習モデル出力
+    fileout = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/mode{cfg.mode}_{cfg.init_eval}-{cfg.change_eval}-{cfg.n_inherit}"
+    if os.path.exists(f"{fileout}/0-1.zip"):
         if not input('Overwrite learned files? [Y/n] ') in ["Y", "y", "YES", "Yes", "yes"]:
             raise FileExistsError("Learned file already exists.")
 
+    # プッシュ通知（処理開始）
     if cfg.notify is True: _notify(f"演算を開始します")
 
     # 変数初期化
+    cfg.theta_k_model = 'unify'
     best_papr = None
-    exec_i = 0
-    step = 0
-    papr_stack = 0
-    papr_stacked = False
-    papr_renew = 0
-    exec_loop = 50
-    list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr = [], [], [], [], [], []
+    iteration, step, papr_renew, papr_stack, disp_renew, disp_stack = 0, 0, 0, 1, 0, 1
+    filenames, list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr = {}, [], [], [], [], [], []
 
-    while papr_renew in range(exec_loop):
+    while papr_renew in range(cfg.n_inherit):
+        # 学習データ参照辞書 追加
+        filenames[iteration] = f'{disp_renew}-{disp_stack}'
+
+        # 学習データ 再読み込み
+        if iteration != 0 and (disp_stack != 0 or reload is True):
+            print(f"Load: {filenames[iteration-1]}.zip")
+            model.load(f"{fileout}/{filenames[iteration-1]}")
         # 学習
         match cfg.algorithm:
             case "PPO":
-                model.learn(total_timesteps=cfg.max_episode_steps*8, progress_bar=True)
+                model.learn(total_timesteps=cfg.total_timesteps, progress_bar=True)
             case "SAC":
-                model.learn(total_timesteps=cfg.max_episode_steps*8, log_interval=4, progress_bar=True)
+                model.learn(total_timesteps=cfg.total_timesteps, log_interval=4, progress_bar=True)
             case _:
                 raise ValueError("A non-existent algorithm is selected.")
-        model.save(f"{fileout}/{exec_i}")
+        model.save(f"{fileout}/{filenames[iteration]}")
 
-        # 学習データ読み込み
-        model.load(f"{fileout}/{exec_i}")
+        # 学習データを使った評価演算
+        model.load(f"{fileout}/{filenames[iteration]}")
         vec_env = model.get_env()
         obs = vec_env.reset()
         for _ in range(cfg.max_episode_steps):
-            step += 1
             if cfg.algorithm == 'SAC':
                 action, _states = model.predict(obs, deterministic=True)
             else:
@@ -197,38 +205,62 @@ def inherit_learn_exec() -> None:
             vec_env.render()
 
             # 記録
+            step += 1
             list_step.append(step)
-            list_epi.append(papr_renew)
+            list_epi.append(disp_renew)
             list_action.append(action)
             list_theta_k_bins.append(env.unwrapped.theta_k_bins)
             list_max_ept.append(env.unwrapped.max_ept)
             list_papr.append(env.unwrapped.papr_db)
 
-        cfg.theta_k_model = 'manual'
-        if best_papr is None: best_papr = min(list_papr)
-        if best_papr == min(list_papr):
-            papr_stack += 1
-            if papr_stack == 10:
-                papr_stack = 0
-                papr_stacked = True
-        if best_papr > min(list_papr) or papr_stacked is True:
-            papr_renew += 1
-            papr_stack = 0
-            papr_stacked = False
-            best_papr = min(list_papr)
-            print(f"renewal: {papr_renew} / PAPR: {best_papr} / metrics: {env.unwrapped.eval_metrics}")
+        # 評価
+        if papr_renew == 0: #and reload is True:
+            if papr_stack > cfg.init_eval-1:
+                will_renew = True
+                papr_renew += 1
+                disp_renew += 1
+                papr_stack, disp_stack = 1, 1
+            else:
+                will_renew = False
+                papr_stack += 1
+                disp_stack += 1
+        else:
+            if min(list_papr) < best_papr:
+                will_renew = True
+                papr_renew += 1
+                disp_renew = papr_renew
+                papr_stack, disp_stack = 1, 1
+            elif papr_stack > cfg.stack_limit-1:
+                will_renew = True
+                papr_renew += 1
+                papr_stack = 1
+                disp_stack += 1
+            else:
+                will_renew = False
+                papr_stack += 1
+                disp_stack += 1
 
-            if papr_renew >= 5:
-                next_max_phase = env.unwrapped.max_phase * cfg.reduction_ratio
-                min_i = list_papr.index(best_papr)
-                next_theta_k = list_theta_k_bins[min_i]
-                env.unwrapped.set_options(dict(max_phase=next_max_phase, manual_theta_k=next_theta_k))
-            if papr_renew == 15:
+        # 更新時処理
+        if will_renew is True:
+            will_renew = False
+            best_papr = min(list_papr)
+            print(f"renewal: {papr_renew} / PAPR: {best_papr:.04f} / metrics: {env.unwrapped.eval_metrics}")
+
+            # 更新後 下準備
+            # 行動範囲変更
+            next_max_phase = env.unwrapped.max_phase * cfg.reduction_ratio
+            # 初期状態変更
+            cfg.theta_k_model = 'manual'
+            min_i = list_papr.index(best_papr)
+            next_theta_k = list_theta_k_bins[min_i]
+            env.unwrapped.set_options(dict(max_phase=next_max_phase, manual_theta_k=next_theta_k))
+            # 既定回数を満たした場合、評価基準を変更
+            if papr_renew == cfg.change_eval:
                 env.unwrapped.eval_metrics = "db"
                 env.unwrapped.eval_model = "Square"
 
         obs = vec_env.reset()
-        exec_i += 1
+        iteration += 1
 
     _output(fileout, list_step, list_epi, list_action, list_theta_k_bins, list_max_ept, list_papr)
     end = datetime.now()
