@@ -2,7 +2,10 @@
 
 title = "repapr-sb3 config file"
 algorithm = "SAC"
-mode = 0        # 0: All / 1: learn / 2: load / 3: inherit_load / 4: inherit_learn_load
+
+# 0: All / 1: learn / 2: load / 3: inherit_load
+# 4: inherit_and_learn / 5: inherit_and_learn_reload
+mode = 0
 
 [input] # 入力変数
 tones = 4
@@ -21,12 +24,18 @@ notify = false
 continuous = true           # 連続値を使用するか
 const_first_phase = true    # 1つめの位相を phase_value で固定
 action_control = 0          # 0: 相対値 / 1: 絶対値
-reduction_ratio = 0.9       # 最大位相の減少倍率
 total_timesteps = 10_000    # 計算上限（継承時は無効）
 max_episode_steps = 200     # 1エピソードあたりのステップ上限
 
+[env.param.inherit]
+reduction_ratio = 0.9       # 最大位相の減少倍率
+stack_limit = 10            # スタック上限
+init_eval = 5               # 初期学習
+change_eval = 20            # 評価基準変更
+n_inherit = 30              # theta_k 継承上限回数
+
 [env.observation] # observation 設定
-theta_k = true
+theta_k = false
 theta_k_diff = true
 ept = false
 papr = true
@@ -45,8 +54,8 @@ eval_metrics = "mse"
 eval_model = "AMSE_v0"
 
 [hyper] # ハイパーパラメータ
-N = 16
-batch_size = 64
+N = 16               # def: 2048 / 512 / 64
+batch_size = 64      # def: 64 / 32 / 8
 n_epochs = 8
 alpha = 0.0003
 gamma = 0.99
