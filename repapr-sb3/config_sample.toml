@@ -17,7 +17,8 @@ phase_value = 0.0
 manual = []
 
 [addproc] # 追加処理
-rt_graph = true
+rt_ept_graph = false
+rt_phase_cricle = false
 notify = false
 
 [env.param] # 環境パラメータ
@@ -40,6 +41,7 @@ theta_k_diff = true
 ept = false
 papr = true
 mse = false
+action_range = false
 peaks_height = false        # calc_peaks
 len_both_peaks = false      # calc_peaks
 
@@ -54,9 +56,9 @@ eval_metrics = "mse"
 eval_model = "AMSE_v0"
 
 [hyper] # ハイパーパラメータ
-N = 16               # def: 2048 / 512 / 64
-batch_size = 64      # def: 64 / 32 / 8
-n_epochs = 8
+N = 512               # def: 2048 / 512 / 64
+batch_size = 32      # def: 64 / 32 / 8
+n_epochs = 10
 alpha = 0.0003
 gamma = 0.99
 

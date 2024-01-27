@@ -7,7 +7,7 @@ cfg = Conf()
 out = f"{cfg.filepath}/{cfg.algorithm}/N{cfg.tones}/{cfg.eval_model}_{cfg.action_control}_LT{cfg.total_timesteps}_LE{cfg.max_episode_steps}_100"
 # unuse names
 # _G{str(cfg.gamma).replace('.', '')}
-env = gym.make("repapr-v0", render_mode="debug")
+env = gym.make("repapr-v0", render_mode="human")
 
 # 学習アルゴリズム選択
 match cfg.algorithm:
@@ -244,11 +244,12 @@ def inherit_and_learn(reload) -> None:
         if will_renew is True:
             will_renew = False
             best_papr = min(list_papr)
-            print(f"renewal: {papr_renew} / PAPR: {best_papr:.04f} / metrics: {env.unwrapped.eval_metrics}")
 
             # 更新後 下準備
             # 行動範囲変更
             next_max_phase = env.unwrapped.max_phase * cfg.reduction_ratio
+            print(f"renewal: {papr_renew} / range: {next_max_phase:.04f} / PAPR: {best_papr:.04f} / metrics: {env.unwrapped.eval_metrics}")
+
             # 初期状態変更
             cfg.theta_k_model = 'manual'
             min_i = list_papr.index(best_papr)

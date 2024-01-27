@@ -27,7 +27,8 @@ class Conf(object):
             self.manual: list = cfg['input']['manual']
 
             # 追加処理
-            self.rt_graph: bool = cfg['addproc']['rt_graph']
+            self.rt_ept_graph: bool = cfg['addproc']['rt_ept_graph']
+            self.rt_phase_cricle: bool = cfg['addproc']['rt_phase_cricle']
             self.notify: bool = cfg['addproc']['notify']
 
             # 環境パラメータ

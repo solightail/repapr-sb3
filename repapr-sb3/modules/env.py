@@ -36,7 +36,8 @@ class RePAPREnv(gym.Env):
         self.continuous: bool = cfg.continuous
         self.const_first_phase: bool = cfg.const_first_phase
         self.action_control: int = cfg.action_control
-        self.rt_graph: bool = cfg.rt_graph
+        self.rt_ept_graph: bool = cfg.rt_ept_graph
+        self.rt_phase_cricle: bool = cfg.rt_phase_cricle
 
         self.render_mode = render_mode
 
@@ -44,7 +45,7 @@ class RePAPREnv(gym.Env):
         self.amse = None
         self._options = None
         self.time_arr: np.ndarray = np.arange(0.0, 1.0 + self.del_time, self.del_time)
-        if self.render_mode is not None and self.rt_graph is True: self.init_rt_graph: bool = True
+        if self.render_mode is not None and (self.rt_ept_graph is True or self.rt_phase_cricle is True): self.init_rt_graph: bool = True
 
         # action スペース設定
         # 1 => 2π / -1 ~ 1 であれば 0.5 で少なくとも 2π 分は変位可能
@@ -104,6 +105,10 @@ class RePAPREnv(gym.Env):
             self.input_dims += 1
             observation_low.append(0.0)
             observation_high.append(maxp0t**2)
+        if self.observation_items['action_range'] is True:
+            self.input_dims += 1
+            observation_low.append(0.0)
+            observation_high.append(1.0)
         if self.observation_items['peaks_height'] is True:
             if self.eval_metrics == 'abs':
                 match self.eval_model:
@@ -182,6 +187,8 @@ class RePAPREnv(gym.Env):
         if self.observation_items['mse'] is True:
             if self.known_amse is False: self.amse = self._calc_mse(self.ept_arr)
             observation.append(self.amse)
+        if self.observation_items['action_range'] is True:
+            observation.append(self.max_phase)
         if self.observation_items['peaks_height'] is True:
             if self.known_peaks is False: self._calc_peaks()
             if self.obs_n_ph == 1:
@@ -359,33 +366,35 @@ class RePAPREnv(gym.Env):
             return
 
         if self.render_mode == "human":
-            if self.rt_graph is True:
+            if self.rt_ept_graph is True or self.rt_phase_cricle is True:
                 if self.init_rt_graph is True:
                     from .utils import rt_plot_init, rt_circle_init
-                    self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
-                    self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
+                    if self.rt_ept_graph is True: self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
+                    if self.rt_phase_cricle is True: self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
                     self.init_rt_graph = False
 
                 from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_circle_reload_line, rt_pause_plot
                 # rt_graph リセット
-                rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
-                rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
-                rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
+                if self.rt_ept_graph is True:
+                    rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
+                    rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
+                if self.rt_phase_cricle is True: rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
                 rt_pause_plot()
 
         else:  # mode == "debug":
-            if self.rt_graph is True:
+            if self.rt_ept_graph is True or self.rt_phase_cricle is True:
                 if self.init_rt_graph is True:
                     from .utils import rt_plot_init, rt_circle_init
-                    self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
-                    self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
+                    if self.rt_ept_graph is True: self.lines, self.plot_text_bl, self.plot_text_br = rt_plot_init(self.time_arr, self.ept_arr, self.papr_db, self.amse)
+                    if self.rt_phase_cricle is True: self.circle_lines = rt_circle_init(self.theta_k_bins_diffs)
                     self.init_rt_graph = False
 
                 from .utils import rt_plot_reload_line, rt_plot_reload_text_br, rt_circle_reload_line, rt_pause_plot
                 # rt_graph リセット
-                rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
-                rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
-                rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
+                if self.rt_ept_graph is True:
+                    rt_plot_reload_line(self.lines, self.time_arr, self.ept_arr)
+                    rt_plot_reload_text_br(self.plot_text_br, self.papr_db, self.amse)
+                if self.rt_phase_cricle is True: rt_circle_reload_line(self.circle_lines, self.theta_k_bins_diffs)
                 if action is not None:
                     print("-----------------------------------------------")
                     print(f"action : {action}")
